@@ -4,13 +4,22 @@ This script gathers desired data from the American Community Survey API for cens
 
 # %%
 
+# Import requests to execute API queries and return results
 import requests
+
+# Import csv to save the data; codecs is used since the byte order mark wasn't being handled properly otherwise
 import csv
 import codecs
+
 # %%
+
+# Define the full dictionary of American Community Survey variable codes to gather for the analysis, along with string labels to use for clarity
+# https://api.census.gov/data/2022/acs/acs5/groups.html
+
 code_dict = {
     "B01003_001E": "total_pop",
-    "B17001_002E": "below_poverty_level",
+    "B17010_002E": "below_poverty_level",
+    "B01001_001E": "age_total",
     "B01001_003E": "male_0_4",
     "B01001_004E": "male_5_9",
     "B01001_005E": "male_10_14",
@@ -57,13 +66,12 @@ code_dict = {
     "B01001_047E": "female_75_79",
     "B01001_048E": "female_80_84",
     "B01001_049E": "female_85+",
+    "B02001_001E": "race_total",
     "B02001_002E": "race_white",
     "B02001_003E": "race_black",
     "B02001_004E": "race_native",
     "B02001_005E": "race_asian",
     "B02001_007E": "race_other",
-    "B05012_002E": "native",
-    "B05012_003E": "foreign_born",
     "B08301_001E": "trans_total",
     "B08301_002E": "trans_car",
     "B08301_003E": "trans_car_alone",
@@ -77,6 +85,7 @@ code_dict = {
     "B08301_016E": "trans_taxi",
     "B08301_017E": "trans_motorcycle",
     "B08301_019E": "trans_walk",
+    "B15003_001E": "edu_total",
     "B15003_017E": "edu_hs_diploma",
     "B15003_018E": "edu_ged",
     "B15003_019E": "edu_some_col1",
@@ -86,26 +95,26 @@ code_dict = {
     "B15003_023E": "edu_mast",
     "B15003_024E": "edu_prof",
     "B15003_025E": "edu_phd",
-    "B19122_001E": "fam_earners_total",
-    "B19122_002E": "fam_earners_0",
-    "B19122_003E": "fam_earners_1",
-    "B19122_004E": "fam_earners_2",
-    "B19122_005E": "fam_earners_3+",
     "B25001_001E": "housing_units",
     "B25035_001E": "med_year_built",
+    "B21001_001E": "vet_total",
     "B21001_002E": "vet_veteran",
     "B21001_003E": "vet_nonveteran",
-    "B12007_001E": "mar_median_age_m",
-    "B12007_002E": "mar_median_age_f"
+    "C16002_001E": "home_lang_total",
+    "C16002_002E": "home_lang_eng_only"
 }
 
 # %%
 
-code_string = ','.join(
-    code_dict.keys()
-)
+# Combine all codes
+
+# code_string = ','.join(
+#     code_dict.keys()
+# )
 
 # %% 
+
+# Define a function to process query results, returning JSON output or an error upon failure; separated out since this is used in multiple instances
 
 def process_query(url):
 
@@ -119,57 +128,83 @@ def process_query(url):
 
 # %%
 
+# Define a URL used to get state codes from the Census API
+
 states_url = 'https://api.census.gov/data/2022/acs/acs5?get=NAME&for=state:*'
+
+# Get JSON data with state codes
 
 states_list = process_query(states_url)
 
 # %%
 
+# Initialize a dictionary to hold state codes and names
+
 state_dict = {}
 
-state_headers = states_list[0]
+# # Define the headers (first item in list)
+
+# state_headers = states_list[0]
+
+# Iterate through each state in the results, mapping the state name to the state number
 
 for state in states_list[1:]:
     state_dict[state[1]] = state[0]
-# %%
-
-print(state_dict)
 
 # %%
+
+# Initialize a list that will hold individual dictionaries for each CSV row
 
 all_data = []
 
 # %%
 
+# Define a function that returns data for a given state
+# This splits the code dictionary into two halves due to limits on how many variables can be included in a single request
+
 def get_state_data(state_code='*', first_half = True):
 
+    # Convert the code dictionary keys into a list; depending on the first_half input, select a slice
     code_list_trunc =  list(code_dict.keys())[:48] if first_half else list(code_dict.keys())[48:]
 
-    code_string_trunc = ','.join(code_list_trunc)
+    # Take the truncated list and join it with commas, adding the default 'NAME' field for potential troubleshooting/verification
+    code_string_trunc = ','.join(['NAME'] + code_list_trunc)
 
+    # Construct the URL for the API query
     url = '&'.join([
         f'https://api.census.gov/data/2022/acs/acs5?get={code_string_trunc}',
         'for=block%20group:*',
         f'in=state:{state_code}%20county:*'
     ])
 
+    # Return the results of the query
     return process_query(url)
 
 # %%
 
+# Define a function that combines the two state data halves (lists of lists) into one list of dictionaries
+
 def list_to_dicts(state_data1, state_data2):
 
+    # Initialize an empty list to hold the dictionaries
     output = []
 
+    # Grab header lists from both state data lists (the first item)
     headers1 = state_data1[0]
     headers2 = state_data2[0]
 
+    # For each index position in state data contents (starting from 1 since 0 is headers), iterate through the associated data rows to construct a dictionary and add it to the output list
+
     for i in range(1, len(state_data1)):
 
+        # Initialize a dictionary to hold the output
         row_dict = {}
 
+        # Grab the associatd rows for this index position
         row1 = state_data1[i]
         row2 = state_data2[i]
+
+        # Iterate through the row for this census block in both query results, getting associated header values at each list position
 
         for i, r in enumerate(row1):
 
@@ -185,20 +220,21 @@ def list_to_dicts(state_data1, state_data2):
 
                 row_dict[header] = r
 
+        # Append the full dictionary to the output list
+
         output.append(row_dict)
+
+    # Return the full list of dictionary values for every census block in the state
 
     return output
 
 # %%
 
-i = 0
+# Iterate through each state, executing two queries to get the desired fields and constructing one combined list of dictionaries
+
+print("Executing queries for state data:\n")
 
 for state_code, state_name in state_dict.items():
-
-    i += 1
-
-    if i > 3:
-        break
 
     print(state_name)
 
@@ -207,11 +243,11 @@ for state_code, state_name in state_dict.items():
     dicts = list_to_dicts(state_data_1, state_data_2)
     all_data.extend(dicts)
 
-# %%
-
-print(all_data[0].keys())
 
 # %%
+
+# Write the list of dictionaries to a csv for use in model-building
+
 with codecs.open('census_data.csv', 'w', encoding='utf-8-sig') as file:
     dict_writer = csv.DictWriter(file, all_data[0].keys())
     dict_writer.writeheader()
