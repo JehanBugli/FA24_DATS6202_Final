@@ -1,2 +1,4 @@
 
 /result/GridSearchCV
+result/model/model.weights.h5
+result/figure/learning_curve.pdf
