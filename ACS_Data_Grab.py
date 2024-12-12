@@ -66,6 +66,8 @@ code_dict = {
     "B01001_047E": "female_75_79",
     "B01001_048E": "female_80_84",
     "B01001_049E": "female_85+",
+    "B03003_001E": "ethnicity_total",
+    "B03003_003E": "ethnicity_hispanic",
     "B02001_001E": "race_total",
     "B02001_002E": "race_white",
     "B02001_003E": "race_black",
@@ -73,10 +75,8 @@ code_dict = {
     "B02001_005E": "race_asian",
     "B02001_007E": "race_other",
     "B08301_001E": "trans_total",
-    "B08301_002E": "trans_car",
     "B08301_003E": "trans_car_alone",
     "B08301_004E": "trans_carpool",
-    "B08301_010E": "trans_public",
     "B08301_011E": "trans_bus",
     "B08301_012E": "trans_subway",
     "B08301_013E": "trans_train",
@@ -101,7 +101,10 @@ code_dict = {
     "B21001_002E": "vet_veteran",
     "B21001_003E": "vet_nonveteran",
     "C16002_001E": "home_lang_total",
-    "C16002_002E": "home_lang_eng_only"
+    "C16002_002E": "home_lang_eng_only",
+    "B08303_001E": "travel_time_total",
+    "B08303_012E": "travel_time_60_89",
+    "B08303_013E": "travel_time_90+"
 }
 
 # %%
@@ -248,7 +251,7 @@ for state_code, state_name in state_dict.items():
 
 # Write the list of dictionaries to a csv for use in model-building
 
-with codecs.open('census_data.csv', 'w', encoding='utf-8-sig') as file:
+with codecs.open('data/census_data.csv', 'w', encoding='utf-8-sig') as file:
     dict_writer = csv.DictWriter(file, all_data[0].keys())
     dict_writer.writeheader()
     dict_writer.writerows(all_data)
